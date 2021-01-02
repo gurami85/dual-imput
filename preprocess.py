@@ -10,12 +10,22 @@ df = pd.read_csv('./data/AirQualityUCI.csv',
                  date_parser=parser_one)
 
 df.index = df['Datetime']
-df = df.drop(columns=['Datatime'])
-df = df.drop(columns=['NMHC(GT)'])  # This feature has many missing values
+df = df.drop(columns=['Datetime'])
+df = df.drop(columns=['NMHC(GT)'])  # This variable includes a lot of missing values
+df = df.drop(columns=['T'])         # This variable includes negative values
 
-# Find instances which have missing values
-# Then fill all columns with nan (to make completely missing data instances)
-df.loc[df.isnull().any(axis=1)] = np.nan
+# Reorder columns of data frame
+# [feature1, feature2 ..., target variable]
+col_features = df.columns.delete(2)     # features excluded target variable
+col_target = df.columns[2]             # target variable: C6H6(GT)
 
-df.to_csv('./data/AirQualityUCI_refined.csv', index='Datetime')
+df_arranged = df[col_features]
+df_arranged[col_target] = df[col_target]
+
+# # Find instances which have missing values
+# # Then fill all columns with nan (to make completely missing data instances)
+# df_arranged.loc[df_arranged.isnull().any(axis=1)] = np.nan
+
+# save the arranged data
+df_arranged.to_csv('./data/AirQualityUCI_refined.csv', index='Datetime')
 

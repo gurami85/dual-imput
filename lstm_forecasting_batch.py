@@ -72,7 +72,6 @@ num_batches = int(x_train.shape[0] / batch_size)
 if x_train.shape[0] % batch_size != 0:
     num_batches += 1
 
-
 """
 2. Model Definition
 """
@@ -108,88 +107,80 @@ class LSTM(nn.Module):
         y_pred = self.linear(lstm_out[:, -1])
         return y_pred.view(-1)
 
-model = LSTM(input_size, hidden_size, batch_size=1, output_dim=output_dim, num_layers=num_layers)
-model.seq_len = seq_len
-if torch.cuda.is_available() == True:
-    model.cuda()    # for cuda
-
-loss_fn = torch.nn.L1Loss()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
-
-"""
-3. Train / Validate the Model
-"""
-
 
 def weighted_mean_absolute_percentage_error(y_obs, y_hat):
     y_obs, y_hat = np.array(y_obs), np.array(y_hat)
     return np.abs(y_obs - y_hat).sum() / y_obs.sum()
 
 
-# Loss history in training / validation steps
-# hist[:, 0]: training loss (MAE)
-# hist[:, 1]: validation loss (MAE)
-# hist[:, 2]: validation loss (WMAPE)
-hist = np.zeros((num_epochs, 3))    # train/valid loss history
-n_degradation = 0                   # degradation cases of validation loss
-patience = num_epochs                       # for early stopping
-for t in range(num_epochs):         # for each epoch
-# for t in range(1):                # [TEST]
-    y_pred = np.empty(0)
-    for i in range(num_batches):    # for each batch
-        print("Training the model: %d/%dth epoch, %d/%dth batch..."
-              % (t + 1, num_epochs, i + 1, num_batches), end='\r')
-        # last batch
-        if i == num_batches-1:
-            x_batch_arr = x_train[i*batch_size:]
-            y_batch_arr = y_train[i*batch_size:]
-        # other batches
+num_exp = 10
+hist_exp = np.zeros((num_exp, 2))
+
+for e in range(num_exp):
+    model = LSTM(input_size, hidden_size, batch_size=1, output_dim=output_dim, num_layers=num_layers)
+    model.seq_len = seq_len
+    if torch.cuda.is_available() == True:
+        model.cuda()    # for cuda
+    loss_fn = torch.nn.L1Loss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    hist = np.zeros((num_epochs, 3))    # train/valid loss history
+    for t in range(num_epochs):         # for each epoch
+    # for t in range(1):                # [TEST]
+        y_pred = np.empty(0)
+        for i in range(num_batches):    # for each batch
+            print("Training the model: %d/%dth epoch, %d/%dth batch..."
+                  % (t + 1, num_epochs, i + 1, num_batches), end='\r')
+            # last batch
+            if i == num_batches-1:
+                x_batch_arr = x_train[i*batch_size:]
+                y_batch_arr = y_train[i*batch_size:]
+            # other batches
+            else:
+                x_batch_arr = x_train[i*batch_size:i*batch_size+batch_size]
+                y_batch_arr = y_train[i*batch_size:i*batch_size+batch_size]
+            # transformation (ndarray -> torch)
+            x_batch = Variable(torch.from_numpy(x_batch_arr).float()).type(dtype)
+            y_batch = Variable(torch.from_numpy(y_batch_arr).float()).type(dtype)
+            model.batch_size = x_batch.shape[0]
+            model.hidden = model.init_hidden()
+            # get predictions for the batch
+            pred_i = model(x_batch)
+            # forward pass
+            loss_train = loss_fn(pred_i, y_batch)
+            # zero out gradient, else they will accumulate between epochs
+            optimizer.zero_grad()
+            # backward pass
+            loss_train.backward()
+            # update parameters
+            optimizer.step()
+            # store the predictions
+            y_pred = np.append(y_pred, pred_i.detach().cpu().numpy(), axis=0)
+        # measure a loss in the current epohch
+        loss_train = loss_fn(torch.from_numpy(y_pred), torch.from_numpy(y_train)).item()
+        # Validation step
+        x_batch = Variable(torch.from_numpy(x_valid).float()).type(dtype)
+        y_forecast = model(x_batch)
+        loss_valid = loss_fn(y_forecast, torch.from_numpy(y_valid).type(dtype)).item()
+        y_forecast = y_forecast.detach().cpu().numpy()
+        loss_wmape = weighted_mean_absolute_percentage_error(y_valid, y_forecast)
+        if t == 0:
+            loss_train_prev = float('inf')
+            loss_valid_prev = float('inf')
         else:
-            x_batch_arr = x_train[i*batch_size:i*batch_size+batch_size]
-            y_batch_arr = y_train[i*batch_size:i*batch_size+batch_size]
-        # transformation (ndarray -> torch)
-        x_batch = Variable(torch.from_numpy(x_batch_arr).float()).type(dtype)
-        y_batch = Variable(torch.from_numpy(y_batch_arr).float()).type(dtype)
-        model.batch_size = x_batch.shape[0]
-        model.hidden = model.init_hidden()
-        # get predictions for the batch
-        pred_i = model(x_batch)
-        # forward pass
-        loss_train = loss_fn(pred_i, y_batch)
-        # zero out gradient, else they will accumulate between epochs
-        optimizer.zero_grad()
-        # backward pass
-        loss_train.backward()
-        # update parameters
-        optimizer.step()
-        # store the predictions
-        y_pred = np.append(y_pred, pred_i.detach().cpu().numpy(), axis=0)
-    # measure a loss in the current epohch
-    loss_train = loss_fn(torch.from_numpy(y_pred), torch.from_numpy(y_train)).item()
-    # Validation step
-    x_batch = Variable(torch.from_numpy(x_valid).float()).type(dtype)
-    y_forecast = model(x_batch)
-    loss_valid = loss_fn(y_forecast, torch.from_numpy(y_valid).type(dtype)).item()
-    y_forecast = y_forecast.detach().cpu().numpy()
-    loss_wmape = weighted_mean_absolute_percentage_error(y_valid, y_forecast)
-    if t == 0:
-        loss_train_prev = float('inf')
-        loss_valid_prev = float('inf')
-    else:
-        loss_train_prev = hist[t - 1, 0]
-        loss_valid_prev = hist[t - 1, 1]
-    print("[INFO] Epoch %d/%d, Train Loss: %.4f, Diff.: %.4f, "
-          "Valid Loss: %.4f, Diff.: %.4f"
-          % ((t + 1), num_epochs, loss_train, (loss_train - loss_train_prev),
-             loss_valid, (loss_valid - loss_valid_prev)))
-    hist[t, 0] = loss_train
-    hist[t, 1] = loss_valid
-    hist[t, 2] = loss_wmape
-    if loss_valid > loss_valid_prev:
-        n_degradation += 1
-    if patience == n_degradation:
-        break
+            loss_train_prev = hist[t - 1, 0]
+            loss_valid_prev = hist[t - 1, 1]
+        print("[INFO] Epoch %d/%d, Train Loss: %.4f, Diff.: %.4f, "
+              "Valid Loss: %.4f, Diff.: %.4f"
+              % ((t + 1), num_epochs, loss_train, (loss_train - loss_train_prev),
+                 loss_valid, (loss_valid - loss_valid_prev)))
+        hist[t, 0] = loss_train
+        hist[t, 1] = loss_valid
+        hist[t, 2] = loss_wmape
+    hist_exp[e, 0] = hist[:, 1].min()
+    hist_exp[e, 1] = hist[:, 2].min()
+
+print(hist_exp)
+
 
 
 """

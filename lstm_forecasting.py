@@ -82,7 +82,7 @@ hidden_size = 30       # default: 32
 output_dim = 1
 num_layers = 3          # default: 2
 learning_rate = 1e-3    # default: 1e-3
-num_epochs = 200        # default: 200
+num_epochs = 400        # default: 200
 
 # the LSTM model
 class LSTM(nn.Module):
@@ -133,7 +133,7 @@ def weighted_mean_absolute_percentage_error(y_obs, y_hat):
 # hist[:, 2]: validation loss (WMAPE)
 hist = np.zeros((num_epochs, 3))    # train/valid loss history
 n_degradation = 0                   # degradation cases of validation loss
-patience = 10                       # for early stopping
+patience = num_epochs                       # for early stopping
 for t in range(num_epochs):         # for each epoch
 # for t in range(1):                # [TEST]
     y_pred = np.empty(0)
@@ -171,7 +171,7 @@ for t in range(num_epochs):         # for each epoch
     x_batch = Variable(torch.from_numpy(x_valid).float()).type(dtype)
     y_forecast = model(x_batch)
     loss_valid = loss_fn(y_forecast, torch.from_numpy(y_valid).type(dtype)).item()
-    y_forecast = y_forecast.detach().cpu().numpy()  # Tensor -> ndarray
+    y_forecast = y_forecast.detach().cpu().numpy()
     loss_wmape = weighted_mean_absolute_percentage_error(y_valid, y_forecast)
     if t == 0:
         loss_train_prev = float('inf')

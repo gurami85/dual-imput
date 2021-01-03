@@ -6,7 +6,6 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
-from matplotlib import pyplot as plt
 
 
 """
@@ -18,12 +17,25 @@ def parser(x):
 
 
 input_file = './data/AirQualityUCI_NMF.csv'
+input_file = './data/AirQualityUCI_MICE.csv'
+input_file = './data/AirQualityUCI_KNN.csv'
+input_file = './data/AirQualityUCI_EM.csv'
+input_file = './data/AirQualityUCI_LOCF.csv'
+input_file = './data/AirQualityUCI_NOCB.csv'
+input_file = './data/AirQualityUCI_refined.csv'
+
 
 # read the data
 df = pd.read_csv(input_file,
                  index_col=[0],
                  parse_dates=[0],
                  date_parser=parser)
+
+# Strategy 1: fill nan values with 0
+# df.fillna(0, inplace=True)
+
+# Strategy 2: drop rows which includes any missing value
+# df.drop(df[df.isnull().any(axis=1)].index, inplace=True)
 
 train_ratio = 0.8
 split_idx = int(len(df) * 0.8)
@@ -113,6 +125,10 @@ def weighted_mean_absolute_percentage_error(y_obs, y_hat):
     return np.abs(y_obs - y_hat).sum() / y_obs.sum()
 
 
+"""
+3. Batch Training / Validation
+"""
+
 num_exp = 10
 hist_exp = np.zeros((num_exp, 2))
 
@@ -179,38 +195,14 @@ for e in range(num_exp):
     hist_exp[e, 0] = hist[:, 1].min()
     hist_exp[e, 1] = hist[:, 2].min()
 
-print(hist_exp)
+mae_max = hist_exp[:, 0].max()
+mae_min = hist_exp[:, 0].min()
+wmape_max = hist_exp[:, 1].max()
+wmape_min = hist_exp[:, 1].min()
 
+print("[INFO] MAE, max: %.4f, min: %.4f, result: %.4f ±%.4f"
+      % (mae_max, mae_min, ((mae_max + mae_min)/2), ((mae_max - mae_min)/2) ))
 
-
-"""
-4. Visualization
-"""
-
-# default visualization setup
-plt.figure(dpi=100)     # set the resolution of plot
-# set the default parameters of visualization
-color_main = '#2c4b9d'
-color_sub = '#00a650'
-color_ssub = '#ef9c00'
-color_sssub = '#e6551e'
-font_family = 'Calibri'
-plt.rcParams.update({'font.family': font_family, 'font.size': 23, 'lines.linewidth': 1,
-                    "patch.force_edgecolor": True, 'legend.fontsize': 18})
-
-
-# line plot
-# plt.plot(errors, label="Residual Errors", kind='bar')
-plt.plot(y_valid, label="Actual")
-plt.plot(y_forecast, label="Forecast")
-plt.legend(loc='best')
-plt.show()
-
-# visualize scatter plot
-fig, ax = plt.subplots()
-ax.scatter(y_valid, y_forecast, 10)   # 10: marker size
-ax.plot([y_valid.min(), y_valid.max()], [y_valid.min(), y_valid.max()], 'k--', lw=2)
-ax.set_xlabel('Actual')
-ax.set_ylabel('Forecast')
-plt.show()
+print("[INFO] WMAPE, max: %.4f, min: %.4f, result: %.4f ±%.4f"
+      % (wmape_max, wmape_min, ((wmape_max + wmape_min)/2), ((wmape_max - wmape_min)/2) ))
 

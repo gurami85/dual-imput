@@ -1,7 +1,9 @@
 import pandas as pd
 from pandas import datetime
-import numpy as np
 
+"""
+Dataset 1: Air Quality
+"""
 def parser_one(x):
     return datetime.strptime(x, '%d/%m/%Y %H:%M:%S')
 
@@ -29,3 +31,8 @@ df_arranged[col_target] = df[col_target]
 # save the arranged data
 df_arranged.to_csv('./data/AirQualityUCI_refined.csv', index='Datetime')
 
+"""
+Dataset 2: 
+"""
+
+df = pd.read_csv('./data/Beijing_PM25.csv')

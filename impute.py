@@ -25,32 +25,62 @@ Splitting indices for each data set
 
 split_idx = 483780
 
+
+"""
+Choose the Imputation Method
+    - k-NN
+    - LOCF
+    - NOCB
+"""
+
 # Imputation mode: k-NN
 imputer = KNNImputer(n_neighbors=2)
-imputed_knn = imputer.fit_transform(arr[:split_idx])
+imputed = imputer.fit_transform(arr[:split_idx])
 
-# [Option] aggregate train (imputed) /valid (not imputed) data
-imputed_knn = np.append(imputed_knn, arr[split_idx:], axis=0)
+# Imputation mode: LOCF
+imputed = df.iloc[:split_idx].ffill()
+imputed = imputed.fillna(0)
+imputed = imputed.values
+
+# Imputation mode: NOCB
+imputed = df.iloc[:split_idx].bfill()
+imputed = imputed.fillna(0)
+
+
+"""
+Postprocessing after Imputation
+"""
+
+# [Option] aggregate train (imputed) / valid (not imputed) data
+imputed = np.append(imputed, arr[split_idx:], axis=0)
 
 # Convert to DataFrame
-imputed_knn = pd.DataFrame(imputed_knn, index=df.index, columns=df.columns)
+imputed = pd.DataFrame(imputed, index=df.index, columns=df.columns)
 
 # [Option] resampling
-imputed_knn = imputed_knn.resample('H').mean()
+imputed = imputed.resample('H').mean()
 
 # [Option] Fill missing values of the resampled data with 0
+split_time = df.iloc[[split_idx]].index
 # missing values in train set -> fill 0
-imputed_knn[imputed_knn.index == '2014-03-30 02:00:00'] = 0
+imputed.loc[
+    (imputed.index < split_time.values[0]) &
+    (imputed.isnull().any(axis=1) == True)] = 0
 # missing values in valid set -> drop
-imputed_knn.drop(
-    imputed_knn[imputed_knn.isnull().any(axis=1)].index,
+imputed.drop(
+    imputed[imputed.isnull().any(axis=1)].index,
     inplace=True)
 
+
+"""
+Visualize and Save
+"""
+
 # Visualizing comparison between actual and imputed values
-plt.plot(imputed_knn[df.columns[0]], label='imputed')
+plt.plot(imputed[df.columns[0]], label='imputed')
 plt.plot(df[df.columns[0]], label='actual')
 plt.legend(loc='best')
 plt.show()
 
 # Save the data set with imputed values
-imputed_knn.to_csv('./data/gecco2015_KNN.csv', index='Datetime')
+imputed.to_csv('./data/gecco2015_LOCF.csv', index='Datetime')

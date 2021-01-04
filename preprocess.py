@@ -1,11 +1,17 @@
 import pandas as pd
 from pandas import datetime
 
+
+def parser_one(x):
+    return datetime.strptime(x, '%d/%m/%Y %H:%M:%S')
+
+
+def parser_two(x):
+    return datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+
 """
 Dataset 1: Air Quality
 """
-def parser_one(x):
-    return datetime.strptime(x, '%d/%m/%Y %H:%M:%S')
 
 df = pd.read_csv('./data/AirQualityUCI.csv',
                  parse_dates=[0],
@@ -31,8 +37,35 @@ df_arranged[col_target] = df[col_target]
 # save the arranged data
 df_arranged.to_csv('./data/AirQualityUCI_refined.csv', index='Datetime')
 
+
 """
-Dataset 2: 
+Dataset 2: Heating System (GECCO2015 Challenge)
+    - Selected data: 2013-11-19 ~ 2015-01-12, 604,800 (df[1128:605928])
+    - Target variable: Return temperature
 """
 
-df = pd.read_csv('./data/Beijing_PM25.csv')
+df = pd.read_csv('./data/gecco2015.csv',
+                 parse_dates=[0],
+                 date_parser=parser_two)
+
+df.index = df['Timestamp']
+df.drop(columns=['Timestamp'], inplace=True)
+
+# Select a period of dataset
+df_sel = df.iloc[1128:605928].copy()
+
+col_features = df.columns.delete(2)
+col_target = df.columns[2]
+
+df_arranged = df_sel[col_features]
+df_arranged[col_target] = df_sel[col_target]
+
+df_arranged.to_csv('./data/gecco2015_refined.csv', index='Datetime')
+
+"""
+Dataset: Individual household electric power consumption
+    - low ratio of missing values
+"""
+
+df = pd.read_csv('./data/household_power_consumption.csv',
+                 dtype={'Global_active_power': 'float'})

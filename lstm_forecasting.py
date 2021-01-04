@@ -13,24 +13,35 @@ from matplotlib import pyplot as plt
 1. Prepare Feature Set
 """
 
-def parser(x):
+
+def parser_datetime(x):
     return datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
 
 
+def parser_date(x):
+    return datetime.strptime(x, '%Y-%m-%d')
+
+
 input_file = './data/AirQualityUCI_NMF.csv'
+input_file = './data/gecco2015_KNN.csv'
 
 # read the data
 df = pd.read_csv(input_file,
                  index_col=[0],
                  parse_dates=[0],
-                 date_parser=parser)
+                 date_parser=parser_datetime)
 
 train_ratio = 0.8
-split_idx = int(len(df) * 0.8)
+
+# [Setup] split_idx
+split_idx = int(len(df) * train_ratio)
+split_idx = 8064      # GECCO2015 (hourly)
+
 
 # Scaling and one-hot encoding
+# Case: Except the target variable -> df.columns[:-1]
 preprocess = make_column_transformer(
-    (MinMaxScaler(), df.columns[:-1]),
+    (MinMaxScaler(), df.columns[:]),
     remainder='passthrough')
 
 train = preprocess.fit_transform(df[:split_idx])
@@ -38,6 +49,7 @@ valid = preprocess.transform(df[split_idx:])
 
 # Calculate the size of input feature vector
 input_size = train.shape[1]-1       # excludes the target variable
+
 
 # Transformation (ndarray -> torch)
 def transform_data(input_data, seq_len):
@@ -208,7 +220,21 @@ plt.rcParams.update({'font.family': font_family, 'font.size': 23, 'lines.linewid
                     "patch.force_edgecolor": True, 'legend.fontsize': 18})
 
 
-# line plot
+# Training results
+plt.plot(y_train, label="Actual")
+plt.plot(y_pred, label="Prediction")
+plt.legend(loc='best')
+plt.show()
+
+# visualize scatter plot
+fig, ax = plt.subplots()
+ax.scatter(y_valid, y_forecast, 10)   # 10: marker size
+ax.plot([y_valid.min(), y_valid.max()], [y_valid.min(), y_valid.max()], 'k--', lw=2)
+ax.set_xlabel('Actual')
+ax.set_ylabel('Forecast')
+plt.show()
+
+# Validation results
 # plt.plot(errors, label="Residual Errors", kind='bar')
 plt.plot(y_valid, label="Actual")
 plt.plot(y_forecast, label="Forecast")

@@ -5,9 +5,11 @@ from pandas import datetime
 def parser_one(x):
     return datetime.strptime(x, '%d/%m/%Y %H:%M:%S')
 
-
 def parser_two(x):
     return datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+
+def parser_three(x):
+    return datetime.strptime(x, '%Y-%m-%d')
 
 """
 Dataset 1: Air Quality
@@ -63,9 +65,20 @@ df_arranged[col_target] = df_sel[col_target]
 df_arranged.to_csv('./data/gecco2015_refined.csv', index='Datetime')
 
 """
-Dataset: Individual household electric power consumption
-    - low ratio of missing values
+Dataset: CNNPred (NASDAQ)
 """
 
-df = pd.read_csv('./data/household_power_consumption.csv',
-                 dtype={'Global_active_power': 'float'})
+df = pd.read_csv('./data/cnnpred_nasdaq.csv',
+                 parse_dates=[0],
+                 date_parser=parser_three)
+
+df.index = df['Datetime']
+df.drop(columns=['Datetime'], inplace=True)
+
+col_features = df.columns.delete(0)
+col_target = df.columns[0]
+
+df_arranged = df[col_features]
+df_arranged[col_target] = df[col_target]
+
+df_arranged.to_csv('./data/cnnpred_nasdaq_refined.csv', index='Datetime')

@@ -35,7 +35,7 @@ Choose the Imputation Method
 """
 
 # Imputation mode: NMF
-imputed = df.values[:split_idx]
+imputed = df.copy().values[:split_idx]
 
 #   hiding values to test imputation
 msk = (imputed + np.random.randn(*imputed.shape) - imputed) < 0.8
@@ -46,7 +46,8 @@ nmf_model = NMF(n_components=4)     # n_components: num. of features
 nmf_model.fit(imputed)
 
 #   iterative imputation process
-while nmf_model.reconstruction_err_**2 > 10:
+# while nmf_model.reconstruction_err_**2 > 10:
+while nmf_model.reconstruction_err_ > 2.45:
     W = nmf_model.fit_transform(imputed)
     imputed[~msk] = W.dot(nmf_model.components_)[~msk]
     print(nmf_model.reconstruction_err_)
@@ -106,4 +107,4 @@ plt.legend(loc='best')
 plt.show()
 
 # Save the data set with imputed values
-imputed.to_csv('./data/gecco2015_NOCB.csv', index='Datetime')
+imputed.to_csv('./data/gecco2015_MICE.csv', index='Datetime')

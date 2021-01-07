@@ -1,7 +1,9 @@
 import pandas as pd
 from pandas import datetime
-from sklearn.impute import KNNImputer
 import numpy as np
+from sklearn.impute import KNNImputer
+from sklearn.decomposition import NMF
+import impyute as impy
 from matplotlib import pyplot as plt
 
 def parser(x):
@@ -15,7 +17,6 @@ df = pd.read_csv(input_file,
                  parse_dates=[0],
                  date_parser=parser)
 
-arr = df.values
 
 """
 Splitting indices for each data set
@@ -33,18 +34,40 @@ Choose the Imputation Method
     - NOCB
 """
 
+# Imputation mode: NMF
+imputed = df.values[:split_idx]
+
+#   hiding values to test imputation
+msk = (imputed + np.random.randn(*imputed.shape) - imputed) < 0.8
+imputed[~msk] = 0
+
+#   initializing NMF imputation model
+nmf_model = NMF(n_components=4)     # n_components: num. of features
+nmf_model.fit(imputed)
+
+#   iterative imputation process
+while nmf_model.reconstruction_err_**2 > 10:
+    W = nmf_model.fit_transform(imputed)
+    imputed[~msk] = W.dot(nmf_model.components_)[~msk]
+    print(nmf_model.reconstruction_err_)
+
+
+# Imputation mode: MICE
+imputed = impy.mice(df.values[:split_idx])
+
 # Imputation mode: k-NN
 imputer = KNNImputer(n_neighbors=2)
-imputed = imputer.fit_transform(arr[:split_idx])
+imputed = imputer.fit_transform(df.values[:split_idx])
 
 # Imputation mode: LOCF
-imputed = df.iloc[:split_idx].ffill()
+imputed = df.copy().iloc[:split_idx].ffill()
 imputed = imputed.fillna(0)
 imputed = imputed.values
 
 # Imputation mode: NOCB
-imputed = df.iloc[:split_idx].bfill()
+imputed = df.copy().iloc[:split_idx].bfill()
 imputed = imputed.fillna(0)
+imputed = imputed.values
 
 
 """
@@ -52,7 +75,7 @@ Postprocessing after Imputation
 """
 
 # [Option] aggregate train (imputed) / valid (not imputed) data
-imputed = np.append(imputed, arr[split_idx:], axis=0)
+imputed = np.append(imputed, df.values[split_idx:], axis=0)
 
 # Convert to DataFrame
 imputed = pd.DataFrame(imputed, index=df.index, columns=df.columns)
@@ -77,10 +100,10 @@ Visualize and Save
 """
 
 # Visualizing comparison between actual and imputed values
-plt.plot(imputed[df.columns[0]], label='imputed')
-plt.plot(df[df.columns[0]], label='actual')
+plt.plot(imputed[df.columns[-1]], label='imputed')
+plt.plot(df[df.columns[-1]], label='actual')
 plt.legend(loc='best')
 plt.show()
 
 # Save the data set with imputed values
-imputed.to_csv('./data/gecco2015_LOCF.csv', index='Datetime')
+imputed.to_csv('./data/gecco2015_NOCB.csv', index='Datetime')

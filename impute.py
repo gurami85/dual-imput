@@ -6,25 +6,30 @@ from sklearn.decomposition import NMF
 import impyute as impy
 from matplotlib import pyplot as plt
 
-def parser(x):
+def parser_one(x):
     return datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
+
+def parser_two(x):
+    return datetime.strptime(x, '%Y-%m-%d')
 
 input_file = './data/AirQualityUCI_refined.csv'
 input_file = './data/gecco2015_refined.csv'
+input_file = './data/cnnpred_nasdaq_refined.csv'
 
 df = pd.read_csv(input_file,
                  index_col=[0],
                  parse_dates=[0],
-                 date_parser=parser)
+                 date_parser=parser_two)
 
 
 """
 Splitting indices for each data set
-    - Air Quality: -1 (impute all data instances)
-    - GECCO2015: 483780 (~ 2014-10-20)
+    - Air Quality: len(df) (impute all data instances)
+    - GECCO 2015: 483780 (~ 2014-10-20)
+    - CNN Pred: len(df)
 """
 
-split_idx = 483780
+split_idx = len(df)
 
 
 """
@@ -52,7 +57,6 @@ while nmf_model.reconstruction_err_ > 2.45:
     imputed[~msk] = W.dot(nmf_model.components_)[~msk]
     print(nmf_model.reconstruction_err_)
 
-
 # Imputation mode: MICE
 imputed = impy.mice(df.values[:split_idx])
 
@@ -70,6 +74,10 @@ imputed = df.copy().iloc[:split_idx].bfill()
 imputed = imputed.fillna(0)
 imputed = imputed.values
 
+# No imputation: Case Deletion
+df.drop(df[df.isnull().any(axis=1)].index, inplace=True)
+df.to_csv('./data/cnnpred_nasdaq_deleted.csv', index='Datetime')
+
 
 """
 Postprocessing after Imputation
@@ -86,11 +94,11 @@ imputed = imputed.resample('H').mean()
 
 # [Option] Fill missing values of the resampled data with 0
 split_time = df.iloc[[split_idx]].index
-# missing values in train set -> fill 0
+#   missing values in train set -> fill 0
 imputed.loc[
     (imputed.index < split_time.values[0]) &
     (imputed.isnull().any(axis=1) == True)] = 0
-# missing values in valid set -> drop
+#   missing values in valid set -> drop
 imputed.drop(
     imputed[imputed.isnull().any(axis=1)].index,
     inplace=True)
@@ -107,4 +115,4 @@ plt.legend(loc='best')
 plt.show()
 
 # Save the data set with imputed values
-imputed.to_csv('./data/gecco2015_MICE.csv', index='Datetime')
+imputed.to_csv('./data/cnnpred_nasdaq_NOCB.csv', index='Datetime')

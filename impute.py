@@ -6,11 +6,14 @@ from sklearn.decomposition import NMF
 import impyute as impy
 from matplotlib import pyplot as plt
 
+
 def parser_one(x):
     return datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
 
+
 def parser_two(x):
     return datetime.strptime(x, '%Y-%m-%d')
+
 
 input_file = './data/AirQualityUCI_refined.csv'
 input_file = './data/gecco2015_refined.csv'
@@ -19,7 +22,7 @@ input_file = './data/cnnpred_nasdaq_refined.csv'
 df = pd.read_csv(input_file,
                  index_col=[0],
                  parse_dates=[0],
-                 date_parser=parser_two)
+                 date_parser=parser_one)
 
 
 """
@@ -29,8 +32,8 @@ Splitting indices for each data set
     - CNN Pred: len(df)
 """
 
-split_idx = len(df)
-
+split_idx = 483780
+split_time = df.iloc[[split_idx]].index
 
 """
 Choose the Imputation Method
@@ -64,6 +67,9 @@ imputed = impy.mice(df.values[:split_idx])
 imputer = KNNImputer(n_neighbors=2)
 imputed = imputer.fit_transform(df.values[:split_idx])
 
+# Imputation mode: EM
+imputed = impy.em(df.values[:split_idx], loops=50)
+
 # Imputation mode: LOCF
 imputed = df.copy().iloc[:split_idx].ffill()
 imputed = imputed.fillna(0)
@@ -75,8 +81,8 @@ imputed = imputed.fillna(0)
 imputed = imputed.values
 
 # No imputation: Case Deletion
-df.drop(df[df.isnull().any(axis=1)].index, inplace=True)
-df.to_csv('./data/cnnpred_nasdaq_deleted.csv', index='Datetime')
+imputed = df.drop(df[df.isnull().any(axis=1)].index).copy()
+
 
 
 """
@@ -93,7 +99,7 @@ imputed = pd.DataFrame(imputed, index=df.index, columns=df.columns)
 imputed = imputed.resample('H').mean()
 
 # [Option] Fill missing values of the resampled data with 0
-split_time = df.iloc[[split_idx]].index
+
 #   missing values in train set -> fill 0
 imputed.loc[
     (imputed.index < split_time.values[0]) &
@@ -115,4 +121,4 @@ plt.legend(loc='best')
 plt.show()
 
 # Save the data set with imputed values
-imputed.to_csv('./data/cnnpred_nasdaq_knn.csv', index='Datetime')
+imputed.to_csv('./data/gecco2015_EM.csv', index='Datetime')

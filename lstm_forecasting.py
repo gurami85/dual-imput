@@ -23,7 +23,7 @@ def parser_date(x):
 
 
 input_file = './data/AirQualityUCI_NMF.csv'
-input_file = './data/gecco2015_KNN.csv'
+input_file = './data/gecco2015_EM.csv'
 
 # read the data
 df = pd.read_csv(input_file,
@@ -31,10 +31,11 @@ df = pd.read_csv(input_file,
                  parse_dates=[0],
                  date_parser=parser_datetime)
 
-train_ratio = 0.8
 
 # [Setup] split_idx
+train_ratio = 0.8
 split_idx = int(len(df) * train_ratio)
+
 split_idx = 8064      # GECCO2015 (hourly)
 
 
@@ -144,8 +145,6 @@ def weighted_mean_absolute_percentage_error(y_obs, y_hat):
 # hist[:, 1]: validation loss (MAE)
 # hist[:, 2]: validation loss (WMAPE)
 hist = np.zeros((num_epochs, 3))    # train/valid loss history
-n_degradation = 0                   # degradation cases of validation loss
-patience = num_epochs                       # for early stopping
 for t in range(num_epochs):         # for each epoch
 # for t in range(1):                # [TEST]
     y_pred = np.empty(0)
@@ -198,10 +197,6 @@ for t in range(num_epochs):         # for each epoch
     hist[t, 0] = loss_train
     hist[t, 1] = loss_valid
     hist[t, 2] = loss_wmape
-    if loss_valid > loss_valid_prev:
-        n_degradation += 1
-    if patience == n_degradation:
-        break
 
 
 """

@@ -115,4 +115,4 @@ plt.legend(loc='best')
 plt.show()
 
 # Save the data set with imputed values
-imputed.to_csv('./data/cnnpred_nasdaq_NOCB.csv', index='Datetime')
+imputed.to_csv('./data/cnnpred_nasdaq_knn.csv', index='Datetime')

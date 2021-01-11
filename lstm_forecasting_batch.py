@@ -13,19 +13,25 @@ from matplotlib import pyplot as plt
 1. Prepare Feature Set
 """
 
-def parser(x):
+
+def parser_one(x):
     return datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
 
 
+def parser_two(x):
+    return datetime.strptime(x, '%Y-%m-%d')
+
+
 input_file = './data/AirQualityUCI_NMF.csv'
-input_file = './data/gecco2015_KNN.csv'
+input_file = './data/gecco2015_NOCB.csv'
+input_file = './data/cnnpred_nasdaq_nocb.csv'
 
 
 # read the data
 df = pd.read_csv(input_file,
                  index_col=[0],
                  parse_dates=[0],
-                 date_parser=parser)
+                 date_parser=parser_one)
 
 # Strategy 1: fill nan values with 0
 # df.fillna(0, inplace=True)
@@ -71,8 +77,8 @@ def transform_data(input_data, seq_len):
 # Specify a device (gpu|cpu)
 dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.float
 
-seq_len = 24
-batch_size = 100
+seq_len = 7
+batch_size = 30
 
 x_train, y_train = transform_data(train, seq_len)
 x_valid, y_valid = transform_data(valid, seq_len)

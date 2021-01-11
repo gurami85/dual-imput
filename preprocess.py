@@ -73,7 +73,7 @@ df = pd.read_csv('./data/cnnpred_nasdaq.csv',
                  date_parser=parser_three)
 
 df.index = df['Datetime']
-df.drop(columns=['Datetime'], inplace=True)
+df.drop(columns=['Datetime', 'Name'], inplace=True)
 
 col_features = df.columns.delete(0)
 col_target = df.columns[0]

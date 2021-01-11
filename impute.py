@@ -32,7 +32,9 @@ Splitting indices for each data set
     - CNN Pred: len(df)
 """
 
+# [Variable]
 split_idx = 483780
+
 split_time = df.iloc[[split_idx]].index
 
 """
@@ -83,6 +85,8 @@ imputed = imputed.values
 # No imputation: Case Deletion
 imputed = df.drop(df[df.isnull().any(axis=1)].index).copy()
 
+# No imputation: Fill values with 0
+imputed = df.copy().iloc[:split_idx].fillna(0)
 
 
 """
@@ -121,4 +125,5 @@ plt.legend(loc='best')
 plt.show()
 
 # Save the data set with imputed values
-imputed.to_csv('./data/gecco2015_EM.csv', index='Datetime')
+imputed.to_csv('./data/gecco2015_zero.csv', index='Datetime')
+imputed.to_csv('./data/cnnpred_nasdaq_zero.csv', index='Datetime')

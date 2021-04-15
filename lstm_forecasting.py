@@ -7,6 +7,7 @@ import torch
 from torch.autograd import Variable
 import torch.nn as nn
 from matplotlib import pyplot as plt
+import sys
 
 
 """
@@ -14,29 +15,42 @@ from matplotlib import pyplot as plt
 """
 
 
-def parser_datetime(x):
+def parser_one(x):
     return datetime.strptime(x, '%Y-%m-%d %H:%M:%S')
 
 
-def parser_date(x):
+def parser_two(x):
     return datetime.strptime(x, '%Y-%m-%d')
 
 
-input_file = './data/AirQualityUCI_NMF.csv'
-input_file = './data/gecco2015_EM.csv'
+# parser_one
+input_file = './data/AirQualityUCI_MEAN.csv'
+input_file = './data/gecco2015_nocb.csv'
+input_file = './data/gecco2015-2_mean.csv'
+input_file = './data/gecco2015-3_mean.csv'
+
+# parser_two
+input_file = './data/cnnpred_nasdaq_knn.csv'
 
 # read the data
 df = pd.read_csv(input_file,
                  index_col=[0],
                  parse_dates=[0],
-                 date_parser=parser_datetime)
+                 date_parser=parser_two)
 
 
 # [Setup] split_idx
 train_ratio = 0.8
 split_idx = int(len(df) * train_ratio)
 
-split_idx = 8064      # GECCO2015 (hourly)
+"""
+    Predefined split indices for each dataset
+    - 7494, AirQuality (CO)
+    - 8064, GECCO2015 (hourly)
+    - 200160, GECCO2015-3 (~ 2014-10-07)
+"""
+
+split_idx = 200160
 
 
 # Scaling and one-hot encoding
@@ -73,8 +87,8 @@ def transform_data(input_data, seq_len):
 # Specify a device (gpu|cpu)
 dtype = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.float
 
-seq_len = 24
-batch_size = 100
+seq_len = 7
+batch_size = 30
 
 x_train, y_train = transform_data(train, seq_len)
 x_valid, y_valid = transform_data(valid, seq_len)
@@ -94,8 +108,8 @@ if x_train.shape[0] % batch_size != 0:
 hidden_size = 30       # default: 32
 output_dim = 1
 num_layers = 3          # default: 2
-learning_rate = 1e-3    # default: 1e-3
-num_epochs = 200        # default: 200
+learning_rate = 1e-4    # default: 1e-3
+num_epochs = 400        # default: 200
 
 # the LSTM model
 class LSTM(nn.Module):
@@ -145,6 +159,7 @@ def weighted_mean_absolute_percentage_error(y_obs, y_hat):
 # hist[:, 1]: validation loss (MAE)
 # hist[:, 2]: validation loss (WMAPE)
 hist = np.zeros((num_epochs, 3))    # train/valid loss history
+best = np.full(y_valid.shape[0], sys.maxsize)
 for t in range(num_epochs):         # for each epoch
 # for t in range(1):                # [TEST]
     y_pred = np.empty(0)
@@ -196,6 +211,8 @@ for t in range(num_epochs):         # for each epoch
              loss_valid, (loss_valid - loss_valid_prev)))
     hist[t, 0] = loss_train
     hist[t, 1] = loss_valid
+    if loss_valid < hist[:, 1].min():
+        best = y_forecast
     hist[t, 2] = loss_wmape
 
 

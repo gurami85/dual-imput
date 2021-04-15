@@ -22,16 +22,21 @@ def parser_two(x):
     return datetime.strptime(x, '%Y-%m-%d')
 
 
-input_file = './data/AirQualityUCI_NMF.csv'
-input_file = './data/gecco2015_NOCB.csv'
-input_file = './data/cnnpred_nasdaq_nocb.csv'
+# parser_one
+input_file = './data/AirQualityUCI_MEAN.csv'
+input_file = './data/gecco2015_nocb.csv'
+input_file = './data/gecco2015-2_mean.csv'
+input_file = './data/gecco2015-3_mean.csv'
+
+# parser_two
+input_file = './data/cnnpred_nasdaq_mean.csv'
 
 
 # read the data
 df = pd.read_csv(input_file,
                  index_col=[0],
                  parse_dates=[0],
-                 date_parser=parser_one)
+                 date_parser=parser_two)
 
 # Strategy 1: fill nan values with 0
 # df.fillna(0, inplace=True)
@@ -39,13 +44,21 @@ df = pd.read_csv(input_file,
 # Strategy 2: drop rows which includes any missing value
 # df.drop(df[df.isnull().any(axis=1)].index, inplace=True)
 
+# [Choice]
 train_ratio = 0.8
 split_idx = int(len(df) * 0.8)
 
-split_idx = 8064      # GECCO2015 (hourly)
+"""
+    Predefined split indices for each dataset
+    - 7494, AirQuality (CO)
+    - 8064, GECCO2015 (hourly)
+    - 200160, GECCO2015-3 (~ 2014-10-07)
+"""
 
+split_idx = 200160
 
 # Scaling and one-hot encoding
+# AirQuality: df.columns[:-1], Others: df.columns[:]
 preprocess = make_column_transformer(
     (MinMaxScaler(), df.columns[:]),
     remainder='passthrough')
@@ -88,6 +101,7 @@ num_batches = int(x_train.shape[0] / batch_size)
 
 if x_train.shape[0] % batch_size != 0:
     num_batches += 1
+
 
 """
 2. Model Definition

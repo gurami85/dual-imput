@@ -100,7 +100,7 @@ while nmf_model.reconstruction_err_ > 2.5:
 imputed = impy.mice(df.values[:split_idx])
 
 # [Imputation mode: k-NN]
-imputer = KNNImputer(n_neighbors=10)    # default: 2
+imputer = KNNImputer(n_neighbors=2)    # default: 2
 imputed = imputer.fit_transform(df.values[:split_idx])
 
 # [Imputation mode: EM]
